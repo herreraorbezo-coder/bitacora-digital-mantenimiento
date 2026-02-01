@@ -27,7 +27,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.set_page_config(page_title="Bitácora Digital de Mantenimiento", page_icon="🛠", layout="wide")
+st.set_page_config(page_title="Bitácora Digital de Mantenimiento", page_icon="favicon.png", layout="wide")
 
 st.markdown("""
 <style>
@@ -469,4 +469,5 @@ if st.session_state.rol in ["SUPERVISOR","PLANEAMIENTO"]:
         file_name="Cambio_Guardia.pdf",
         mime="application/pdf"
     )
+
 
