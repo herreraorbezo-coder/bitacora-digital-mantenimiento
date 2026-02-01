@@ -1,0 +1,3 @@
+# Credenciales
+*.json
+.streamlit/secrets.toml
