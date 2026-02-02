@@ -385,34 +385,34 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
             use_container_width=True
         )
         # ================= DISTRIBUCIÓN DE AVANCE =================
-st.markdown("### 🧩 Estado de avance de mis OTs")
+        st.markdown("### 🧩 Estado de avance de mis OTs")
 
-def clasificar_avance(x):
-    if x < 50:
-        return "Bajo (<50%)"
-    elif x < 95:
-        return "En progreso (50–94%)"
-    else:
-        return "Casi terminado (≥95%)"
+        def clasificar_avance(x):
+            if x < 50:
+                return "Bajo (<50%)"
+            elif x < 95:
+                return "En progreso (50–94%)"
+            else:
+                return "Casi terminado (≥95%)"
 
-df_pie = (
-    df_mio.groupby("ot")["avance_dia"]
-    .max()
-    .reset_index()
-)
+        df_pie = (
+        df_mio.groupby("ot")["avance_dia"]
+        .max()
+        .reset_index()
+        )
 
-df_pie["estado"] = df_pie["avance_dia"].apply(clasificar_avance)
+        df_pie["estado"] = df_pie["avance_dia"].apply(clasificar_avance)
 
-df_pie = (
-    df_pie.groupby("estado")
-    .size()
-    .reset_index(name="cantidad")
-)
+        df_pie = (
+        df_pie.groupby("estado")
+        .size()
+        .reset_index(name="cantidad")
+        )
 
-st.altair_chart(
-    alt.Chart(df_pie)
-    .mark_arc(innerRadius=40)
-    .encode(
+        st.altair_chart(
+        alt.Chart(df_pie)
+        .mark_arc(innerRadius=40)
+        .encode(
         theta=alt.Theta("cantidad:Q", title="OTs"),
         color=alt.Color(
             "estado:N",
@@ -427,12 +427,9 @@ st.altair_chart(
             legend=alt.Legend(title="Estado de avance")
         ),
         tooltip=["estado", "cantidad"]
-    ),
-    use_container_width=True
-)
-
-        
-
+        ),
+        use_container_width=True
+        )
 
 # ================== PALETA VISUAL DASHBOARD ==================
 palette_tecnicos = [
