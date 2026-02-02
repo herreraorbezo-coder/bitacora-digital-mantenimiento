@@ -148,7 +148,6 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
     df_bit["ot"] = df_bit["ot"].astype(str).str.strip()
 
     ots_registradas = df_bit[
-        (df_bit["fecha"] == fecha_sel) &
         (df_bit["area"] == st.session_state.area)
     ]["ot"].astype(str).str.strip().unique()
 
@@ -509,3 +508,4 @@ if st.session_state.rol in ["SUPERVISOR","PLANEAMIENTO"]:
         file_name="Cambio_Guardia.pdf",
         mime="application/pdf"
     )
+
