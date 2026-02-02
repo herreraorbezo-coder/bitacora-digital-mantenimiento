@@ -132,59 +132,7 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
         "📝 Registrar OT",
         "✏️ Mis registros"
     ])
-    with tab_mis_registros:
-
-            st.subheader("✏️ Mis registros del día")
-
-            df_bit = pd.DataFrame(ws_bitacora.get_all_records())
-            df_bit["fecha"] = pd.to_datetime(df_bit["fecha"], errors="coerce").dt.date
-            df_bit["duracion"] = pd.to_numeric(df_bit["duracion"], errors="coerce")
-            df_bit["avance_dia"] = pd.to_numeric(df_bit["avance_dia"], errors="coerce")
-
-            df_mios = df_bit[
-            (df_bit["mecanico"] == st.session_state.nombre) &
-            (df_bit["area"] == st.session_state.area) &
-            (df_bit["fecha"] == date.today())
-    ]
-
-    if df_mios.empty:
-        st.info("No tienes registros hoy")
-        st.stop()
-
-    st.dataframe(df_mios)
-
-    fila_sel = st.selectbox(
-        "Selecciona registro a editar",
-        df_mios.index,
-        format_func=lambda i: f'OT {df_mios.loc[i,"ot"]} – {df_mios.loc[i,"equipo"]}'
-    )
-
-    fila = df_mios.loc[fila_sel]
-
-    with st.form("editar_registro"):
-        detalle = st.text_area("Detalle ejecutado", fila["detalle"])
-        duracion = st.number_input("Duración (h)", min_value=0.1, step=0.1, value=float(fila["duracion"]))
-        avance = st.slider("Avance acumulado (%)", 0, 100, int(fila["avance_dia"]))
-        continua = st.selectbox("¿Continúa?", ["Sí", "No"], index=0 if fila["continua"]=="Sí" else 1)
-
-        confirmar = st.checkbox("Confirmo que deseo modificar este registro")
-        guardar = st.form_submit_button("💾 Guardar cambios")
-
-    if guardar:
-        if not confirmar:
-            st.error("Debes confirmar la modificación")
-            st.stop()
-
-        fila_sheet = fila_sel + 2  # por encabezado
-
-        ws_bitacora.update(
-            f"G{fila_sheet}:J{fila_sheet}",
-            [[detalle, duracion, avance, continua]]
-        )
-
-        st.success("Registro actualizado correctamente")
-        st.rerun()
-
+   
     df_plan=pd.DataFrame(ws_ots.get_all_records())
     df_plan["fecha"]=pd.to_datetime(df_plan["fecha"],errors="coerce").dt.date
     df_plan["area"]=df_plan["area"].astype(str).str.strip()
@@ -560,6 +508,7 @@ if st.session_state.rol in ["SUPERVISOR","PLANEAMIENTO"]:
         file_name="Cambio_Guardia.pdf",
         mime="application/pdf"
     )
+
 
 
 
