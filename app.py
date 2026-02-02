@@ -132,7 +132,7 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
         "📝 Registrar OT",
         "✏️ Mis registros"
     ])
-        with tab_mis_registros:
+    with tab_mis_registros:
 
             st.subheader("✏️ Mis registros del día")
 
@@ -560,6 +560,7 @@ if st.session_state.rol in ["SUPERVISOR","PLANEAMIENTO"]:
         file_name="Cambio_Guardia.pdf",
         mime="application/pdf"
     )
+
 
 
 
