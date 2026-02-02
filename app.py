@@ -27,7 +27,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.set_page_config(page_title="Bitácora Digital de Mantenimiento", page_icon="favicon.png", layout="wide")
+st.set_page_config(page_title="Bitácora Digital de Mantenimiento", page_icon="🛠", layout="wide")
 
 st.markdown("""
 <style>
@@ -128,15 +128,35 @@ if st.session_state.rol=="PLANEAMIENTO":
 if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
     st.title("🛠 Bitácora diaria")
 
+    tab_registro, tab_mis_registros = st.tabs([
+        "📝 Registrar OT",
+        "✏️ Mis registros"
+    ])
+
     df_plan=pd.DataFrame(ws_ots.get_all_records())
     df_plan["fecha"]=pd.to_datetime(df_plan["fecha"],errors="coerce").dt.date
     df_plan["area"]=df_plan["area"].astype(str).str.strip()
     df_plan=df_plan[df_plan["area"]==st.session_state.area]
 
-    fecha_sel=st.date_input("Fecha",value=date.today())
-    df_hoy=df_plan[df_plan["fecha"]==fecha_sel]
+    fecha_sel = st.date_input("Fecha", value=date.today())
+
+# ===== FILTRAR OTs YA REGISTRADAS POR EL TÉCNICO =====
+    df_hoy = df_plan[df_plan["fecha"] == fecha_sel]
+
+    df_bit = pd.DataFrame(ws_bitacora.get_all_records())
+    df_bit["fecha"] = pd.to_datetime(df_bit["fecha"], errors="coerce").dt.date
+    df_bit["ot"] = df_bit["ot"].astype(str).str.strip()
+
+    ots_registradas = df_bit[
+        (df_bit["fecha"] == fecha_sel) &
+        (df_bit["area"] == st.session_state.area)
+    ]["ot"].astype(str).str.strip().unique()
+
+    df_hoy["ot"] = df_hoy["ot"].astype(str).str.strip()
+    df_hoy = df_hoy[~df_hoy["ot"].isin(ots_registradas)]
+
     if df_hoy.empty:
-        st.warning("No hay OTs para hoy")
+        st.success("✅ Ya registraste todas tus OTs del día")
         st.stop()
 
     df_hoy["ot"]=df_hoy["ot"].astype(str).str.strip()
@@ -152,7 +172,7 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
     recursos=df_users[df_users["area"]==st.session_state.area]["Nombre"].tolist()
     recursos.insert(0,"N/A")
 
-    with st.form("bitacora"):
+    with st.form("bitacora", clear_on_submit=True):
         st.text_input("PT",fila["pt"],disabled=True)
         st.text_input("Equipo",fila["equipo"],disabled=True)
         st.text_input("Tipo",fila["tipo"],disabled=True)
@@ -160,8 +180,26 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
         st.text_area("Actividad",fila["actividad"],disabled=True)
 
         detalle=st.text_area("Detalle ejecutado")
-        hora_inicio=st.time_input("Hora inicio")
-        hora_cierre=st.time_input("Hora cierre")
+        from datetime import time
+
+        horas_turno = (
+            [time(h, 0) for h in range(7, 12)] +     # 07:00 - 11:00
+            [time(12, 0)] +                          # 12:00 (antes del refrigerio)
+            [time(13, 30)] +                         # 13:30 (después del refrigerio)
+            [time(h, 0) for h in range(14, 20)]      # 14:00 - 19:00
+        )
+
+        hora_inicio = st.selectbox(
+            "Hora inicio",
+            horas_turno,
+            format_func=lambda t: t.strftime("%I:%M %p")
+        )
+
+        hora_cierre = st.selectbox(
+            "Hora cierre",
+            horas_turno,
+            format_func=lambda t: t.strftime("%I:%M %p")
+        )
 
         st.text_input("Duración total (horas)",value="Automático",disabled=True)
 
@@ -176,7 +214,9 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
 
         continua=st.selectbox("¿Continúa?",["Sí","No"])
         guardar=st.form_submit_button("Guardar")
-
+        if hora_cierre <= hora_inicio:
+            st.error("⚠️ La hora de cierre debe ser mayor que la de inicio")
+            st.stop()
     duracion_final=0.0
     if hora_inicio and hora_cierre:
         hi=datetime.combine(date.today(),hora_inicio)
@@ -469,5 +509,3 @@ if st.session_state.rol in ["SUPERVISOR","PLANEAMIENTO"]:
         file_name="Cambio_Guardia.pdf",
         mime="application/pdf"
     )
-
-
