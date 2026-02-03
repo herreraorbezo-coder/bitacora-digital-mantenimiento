@@ -137,6 +137,10 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
     # ================= REGISTRAR OT =================
     with tab_registro:
         df_plan = pd.DataFrame(ws_ots.get_all_records())
+        df_plan.columns = df_plan.columns.str.strip().str.lower()
+        if "fecha" not in df_plan.columns:
+            st.error("❌ La hoja OTs no tiene la columna 'fecha'")
+            st.stop()
         df_plan["fecha"] = pd.to_datetime(df_plan["fecha"], errors="coerce").dt.date
         df_plan["area"] = df_plan["area"].astype(str).str.strip()
         df_plan = df_plan[df_plan["area"] == st.session_state.area]
@@ -146,6 +150,10 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
         df_hoy = df_plan[df_plan["fecha"] == fecha_sel]
 
         df_bit = pd.DataFrame(ws_bitacora.get_all_records())
+        df_plan.columns = df_plan.columns.str.strip().str.lower()
+        if "fecha" not in df_plan.columns:
+            st.error("❌ La hoja OTs no tiene la columna 'fecha'")
+            st.stop()
         df_bit["fecha"] = pd.to_datetime(df_bit["fecha"], errors="coerce").dt.date
         df_bit["ot"] = df_bit["ot"].astype(str).str.strip()
 
