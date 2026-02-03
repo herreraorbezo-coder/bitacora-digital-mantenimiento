@@ -214,12 +214,13 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
             guardar = st.form_submit_button("Guardar")
 
         if guardar:
-            hi = datetime.combine(date.today(), hora_inicio)
-            hf = datetime.combine(date.today(), hora_cierre)
+            hi = datetime.combine(fecha_sel, hora_inicio)
+            hf = datetime.combine(fecha_sel, hora_cierre)
+
             duracion_final = round((hf - hi).total_seconds() / 3600, 2)
 
             ws_bitacora.append_row([
-                date.today().isoformat(),
+                fecha_sel.isoformat(),
                 datetime.now().strftime("%H:%M:%S"),
                 fila["ot"],
                 fila["pt"],
