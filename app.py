@@ -18,6 +18,11 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
+from openpyxl.utils import get_column_letter
+from io import BytesIO
+
 
 st.markdown(
     """
@@ -158,7 +163,8 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
         df_bit["ot"] = df_bit["ot"].astype(str).str.strip()
 
         ots_registradas = df_bit[
-            df_bit["area"] == st.session_state.area
+             (df_bit["area"] == st.session_state.area) &
+             (df_bit["fecha"] == fecha_sel)
         ]["ot"].unique()
 
         df_hoy["ot"] = df_hoy["ot"].astype(str).str.strip()
@@ -243,20 +249,26 @@ if st.session_state.rol in ["MECÁNICO","INSTRUMENTISTA","ELECTRICISTA"]:
     # ================= MIS REGISTROS =================
     with tab_mis_registros:
         st.subheader("✏️ Mis registros del día")
-
+        fecha_edit = st.date_input(
+        "📅 Fecha a editar",
+        value=date.today()
+    )
         df_bit = pd.DataFrame(ws_bitacora.get_all_records())
         df_bit["fecha"] = pd.to_datetime(df_bit["fecha"], errors="coerce").dt.date
         df_bit["duracion"] = pd.to_numeric(df_bit["duracion"], errors="coerce")
         df_bit["avance_dia"] = pd.to_numeric(df_bit["avance_dia"], errors="coerce")
+        
+        df_bit["mecanico"] = df_bit["mecanico"].astype(str).str.strip().str.upper()
+        nombre_usuario = st.session_state.nombre.strip().upper()
 
         df_mios = df_bit[
-            (df_bit["mecanico"] == st.session_state.nombre) &
+            (df_bit["mecanico"] == nombre_usuario) &
             (df_bit["area"] == st.session_state.area) &
-            (df_bit["fecha"] == date.today())
+            (df_bit["fecha"] == fecha_edit)
         ]
 
         if df_mios.empty:
-            st.info("No tienes registros hoy")
+            st.info(f"No tienes registros para el {fecha_edit.strftime('%d/%m/%Y')}")
             st.stop()
 
         st.dataframe(df_mios)
@@ -451,6 +463,11 @@ palette_tecnicos = [
     "#17BECF",  # cyan
 ]
 def generar_pdf(df_f):
+    
+    # =========================
+    # ORDEN CRONOLÓGICO
+    # =========================
+    df_f = df_f.sort_values(by=["fecha", "ot"]).reset_index(drop=True)
 
     # =========================
     # CÁLCULO DE KPIs
@@ -584,10 +601,11 @@ def generar_pdf(df_f):
     story.append(t)
     story.append(PageBreak())
 
-    detalle_cols=["ot","equipo","mecanico","detalle","duracion","avance_dia","continua"]
+    detalle_cols=["fecha","ot","equipo","mecanico","detalle","duracion","avance_dia","continua"]
     data=[[Paragraph(c,styles["Cell"]) for c in detalle_cols]]
     for _,r in df_f[detalle_cols].iterrows():
             data.append([
+                Paragraph(r["fecha"].strftime("%d/%m/%Y"), styles["Cell"]),
                 Paragraph(str(r["ot"]),styles["Cell"]),
                 Paragraph(str(r["equipo"]),styles["Cell"]),
                 Paragraph(str(r["mecanico"]),styles["Cell"]),
@@ -595,15 +613,16 @@ def generar_pdf(df_f):
                 Paragraph(f'{r["duracion"]} hrs', styles["Cell"]),
                 Paragraph(f'{r["avance_dia"]} %', styles["Cell"]),
                 Paragraph(str(r["continua"]), styles["Cell"])   
-          
+        
             ])
     t2 = Table(
     data,
     colWidths=[
-        2.2*cm,   # OT
-        4.2*cm,   # Equipo
-        3.8*cm,   # Técnico
-        9.5*cm,   # Detalle (la más larga)
+        2.4*cm,   # Fecha
+        2.0*cm,   # OT
+        4.0*cm,   # Equipo
+        3.5*cm,   # Técnico
+        8.8*cm,   # Detalle
         1.8*cm,   # Horas
         2.0*cm,   # Avance %
         1.8*cm    # Continúa
@@ -621,6 +640,70 @@ def generar_pdf(df_f):
     doc.build(story)
     buffer.seek(0)
     return buffer
+def generar_excel(df_f):
+    # =========================
+    # ORDEN CRONOLÓGICO
+    # =========================
+    df_f = df_f.sort_values(by=["fecha", "ot"]).reset_index(drop=True)
+
+    # =========================
+    # VALIDAR COLUMNAS (SEGURIDAD)
+    # =========================
+    for col in ["pt", "recurso", "hora_inicio", "hora_cierre"]:
+        if col not in df_f.columns:
+            df_f[col] = ""
+
+    columnas = {
+        "fecha": "Fecha",
+        "ot": "OT",
+        "pt": "PT",
+        "equipo": "Equipo",
+        "detalle": "Actividad Ejecutada",
+        "mecanico": "Técnico Responsable",
+        "area": "Área",
+        "recurso": "Recurso Personal",
+        "hora_inicio": "Hora Inicio",
+        "hora_cierre": "Hora Fin",
+        "duracion": "Horas Totales",
+        "avance_dia": "Avance (%)",
+        "continua": "Continúa"
+    }
+
+    df_export = df_f[list(columnas.keys())].copy()
+    df_export["fecha"] = df_export["fecha"].dt.strftime("%d/%m/%Y")
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Bitácora Cronológica"
+
+    # Encabezados
+    for col_idx, col_name in enumerate(columnas.values(), start=1):
+        cell = ws.cell(row=1, column=col_idx, value=col_name)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Datos
+    for row_idx, row in enumerate(df_export.itertuples(index=False), start=2):
+        for col_idx, value in enumerate(row, start=1):
+            ws.cell(row=row_idx, column=col_idx, value=value)
+            ws.cell(row=row_idx, column=col_idx).alignment = Alignment(
+                wrap_text=True, vertical="top"
+            )
+
+    # Autoajuste de columnas
+    for col_idx in range(1, ws.max_column + 1):
+        col_letter = get_column_letter(col_idx)
+        max_length = 0
+        for cell in ws[col_letter]:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = min(max_length + 3, 45)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
 if st.session_state.rol in ["SUPERVISOR","PLANEAMIENTO"]:
     st.title("📊 Supervisión – KPIs")
     df=pd.DataFrame(ws_bitacora.get_all_records())
@@ -632,7 +715,12 @@ if st.session_state.rol in ["SUPERVISOR","PLANEAMIENTO"]:
         df=df[df["area"]==st.session_state.area]
     fi=st.date_input("Inicio",value=df["fecha"].min().date())
     ff=st.date_input("Fin",value=df["fecha"].max().date())
-    df_f=df[(df["fecha"]>=pd.to_datetime(fi))&(df["fecha"]<=pd.to_datetime(ff))]
+    df_f = df[
+        (df["fecha"] >= pd.to_datetime(fi)) &
+        (df["fecha"] <= pd.to_datetime(ff))
+    ].copy()
+    # asegurar orden cronológico también fuera del PDF
+    df_f = df_f.sort_values(by=["fecha", "ot"]).reset_index(drop=True)
 
     c1,c2,c3,c4,c5=st.columns(5)
     c1.metric("Registros",len(df_f))
@@ -694,10 +782,19 @@ if st.session_state.rol in ["SUPERVISOR","PLANEAMIENTO"]:
     )
 
     st.dataframe(df_f)
+
     pdf = generar_pdf(df_f)
     st.download_button(
         "📄 Exportar Cambio de Guardia (PDF)",
         pdf,
         file_name="Cambio_Guardia.pdf",
         mime="application/pdf"
+    )
+
+    excel = generar_excel(df_f)
+    st.download_button(
+    "📊 Exportar Bitácora Cronológica (Excel)",
+        excel,
+        file_name="Bitacora_Cronologica.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
